@@ -1,0 +1,41 @@
+name: Build jattach x86
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC x86 compiler
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64_x86
+
+      - name: Extract source and build
+        shell: pwsh
+        run: |
+          Expand-Archive -LiteralPath "jattach-2.2.zip" -DestinationPath "source" -Force
+
+          $src = Get-ChildItem "source" -Recurse -Filter "jattach.c" |
+            Where-Object { $_.FullName -match '[\\/]src[\\/]windows[\\/]jattach\.c$' } |
+            Select-Object -First 1
+
+          if (-not $src) {
+            throw "Windows source file src/windows/jattach.c not found"
+          }
+
+          cl /O2 /D_CRT_SECURE_NO_WARNINGS /DJATTACH_VERSION=\"2.2\" /Fe:jattach.exe $src.FullName advapi32.lib /link /SUBSYSTEM:CONSOLE,5.02
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: jattach-x86
+          path: jattach.exe
+        with:
+          name: jattach-x86
+          path: jattach.exe
