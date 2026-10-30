@@ -11,31 +11,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup MSVC
+      - name: Setup 32-bit compiler
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64_x86
 
-      - name: Extract and build
+      - name: Get official jattach source
         shell: pwsh
         run: |
-          Expand-Archive -LiteralPath "jattach-2.2.zip" -DestinationPath "source" -Force
+          git clone --depth 1 https://github.com/jattach/jattach.git upstream
+          if ($LASTEXITCODE -ne 0) { throw "Source download failed" }
 
-          $src = Get-ChildItem "source" -Recurse -Filter "jattach.c" |
-            Where-Object { $_.FullName -match '[\\/]src[\\/]windows[\\/]jattach\.c$' } |
-            Select-Object -First 1
-
-          if (-not $src) {
-            throw "Windows jattach.c not found"
-          }
-
-          New-Item -ItemType Directory -Force -Path "build" | Out-Null
-
-          cl.exe /O2 /D_CRT_SECURE_NO_WARNINGS /DJATTACH_VERSION=\"2.2\" /Fobuild/jattach.obj /Febuild/jattach.exe $src.FullName advapi32.lib /link /SUBSYSTEM:CONSOLE,5.02
-
-          if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-          }
+      - name: Build x86 EXE
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          cl.exe /O2 /D_CRT_SECURE_NO_WARNINGS /DJATTACH_VERSION=\"2.2\" /Fobuild/jattach.obj /Febuild/jattach.exe upstream/src/windows/jattach.c advapi32.lib /link /SUBSYSTEM:CONSOLE,5.02
+          if ($LASTEXITCODE -ne 0) { throw "Compilation failed" }
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
