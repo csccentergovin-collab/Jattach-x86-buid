@@ -1,4 +1,4 @@
-name: Diagnose jattach x86
+name: Build jattach x86
 
 on:
   workflow_dispatch:
@@ -16,39 +16,23 @@ jobs:
         with:
           arch: amd64_x86
 
-      - name: Download official source
+      - name: Download jattach v2.0
         shell: pwsh
         run: |
-          git clone --depth 1 https://github.com/jattach/jattach.git upstream
+          git clone --branch v2.0 --depth 1 https://github.com/jattach/jattach.git upstream
           if ($LASTEXITCODE -ne 0) {
             throw "Source download failed"
           }
 
-      - name: Diagnose and build
+      - name: Compile 32-bit EXE
         shell: pwsh
         run: |
-          $file = "upstream/src/windows/jattach.c"
-
-          if (!(Test-Path $file)) {
-            throw "jattach.c file not found"
-          }
-
-          Write-Host "========== SOURCE LINES 259-276 =========="
-
-          $lines = Get-Content $file
-
-          for ($i = 258; $i -lt 276; $i++) {
-            Write-Host ("LINE {0}: {1}" -f ($i + 1), $lines[$i])
-          }
-
-          Write-Host "========== END SOURCE DIAGNOSTIC =========="
-
           New-Item -ItemType Directory -Force build | Out-Null
 
-          cl.exe /O2 /D_CRT_SECURE_NO_WARNINGS /Fobuild/jattach.obj /Febuild/jattach.exe $file advapi32.lib /link /SUBSYSTEM:CONSOLE,5.02
+          cl.exe /nologo /O2 /D_CRT_SECURE_NO_WARNINGS /DJATTACH_VERSION=\"2.0\" /Fobuild/jattach.obj /Febuild/jattach.exe upstream/src/windows/jattach.c advapi32.lib /link /SUBSYSTEM:CONSOLE,5.02
 
           if ($LASTEXITCODE -ne 0) {
-            throw "Compilation failed; see diagnostic lines above"
+            throw "Compilation failed"
           }
 
       - name: Upload EXE
