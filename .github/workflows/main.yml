@@ -6,6 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,12 +20,25 @@ jobs:
         shell: pwsh
         run: |
           Expand-Archive -LiteralPath "jattach-2.2.zip" -DestinationPath "source" -Force
-          $src = Get-ChildItem "source" -Recurse -Filter "jattach.c" | Where-Object { $_.FullName -match '[\\/]src[\\/]windows[\\/]jattach\.c$' } | Select-Object -First 1
-          if (-not $src) { throw "Windows jattach.c not found" }
-          cl /O2 /D_CRT_SECURE_NO_WARNINGS /Fe:jattach.exe $src.FullName advapi32.lib
+
+          $src = Get-ChildItem "source" -Recurse -Filter "jattach.c" |
+            Where-Object { $_.FullName -match '[\\/]src[\\/]windows[\\/]jattach\.c$' } |
+            Select-Object -First 1
+
+          if (-not $src) {
+            throw "Windows jattach.c not found"
+          }
+
+          New-Item -ItemType Directory -Force -Path "build" | Out-Null
+
+          cl.exe /O2 /D_CRT_SECURE_NO_WARNINGS /DJATTACH_VERSION=\"2.2\" /Fobuild/jattach.obj /Febuild/jattach.exe $src.FullName advapi32.lib /link /SUBSYSTEM:CONSOLE,5.02
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: jattach-x86
-          path: jattach.exe
+          path: build/jattach.exe
